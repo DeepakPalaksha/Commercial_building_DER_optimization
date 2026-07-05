@@ -1,0 +1,41 @@
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Secrets — never commit real keys
+.env
+
+# Virtual environment
+.venv/
+
+# Generated data — large files, re-downloadable
+data/meter/
+data/weather/
+data/prices/
+data/solar/
+data/metadata.parquet
+
+# Tariff JSON stays in git (small, manually curated)
+!data/tariff/sce_tou_gs3.json
+
+# Analysis outputs
+outputs/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/analysis_executed.ipynb
+notebooks/analysis.html
+# Executed notebook copy placed at repo root by nbconvert (root only)
+/analysis.ipynb
+
+# Pytest cache
+.pytest_cache/
+
+# MLflow
+mlruns/
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+
+# uv.lock is intentionally NOT listed — must be committed

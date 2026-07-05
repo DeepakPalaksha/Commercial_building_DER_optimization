@@ -1,0 +1,80 @@
+{
+  "name": "SCE TOU-GS-3",
+  "description": "Time-of-Use General Service, Large Commercial",
+  "utility": "Southern California Edison",
+  "market": "CAISO",
+  "currency": "USD",
+  "effective_date": "2023-01-01",
+  "data_year": 2023,
+  "source": "https://www.sce.com/regulatory/tariff-books/rates-general-service",
+  "demand_charges": {
+    "summer": {
+      "months": [
+        6,
+        7,
+        8,
+        9
+      ],
+      "on_peak_kw": 19.1,
+      "mid_peak_kw": 5.8,
+      "all_time_kw": 8.85,
+      "on_peak_hours": "14:00-20:00 weekdays",
+      "mid_peak_hours": "10:00-14:00 and 20:00-21:00 weekdays"
+    },
+    "winter": {
+      "months": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        10,
+        11,
+        12
+      ],
+      "mid_peak_kw": 5.8,
+      "all_time_kw": 8.85,
+      "mid_peak_hours": "10:00-21:00 weekdays"
+    }
+  },
+  "energy_charges_per_kwh": {
+    "summer": {
+      "on_peak": {
+        "hours": "14:00-20:00",
+        "weekdays_only": true,
+        "rate": 0.28317
+      },
+      "mid_peak": {
+        "hours": "10:00-14:00 and 20:00-21:00",
+        "weekdays_only": true,
+        "rate": 0.15498
+      },
+      "off_peak": {
+        "hours": "all other hours",
+        "weekdays_only": false,
+        "rate": 0.09871
+      }
+    },
+    "winter": {
+      "mid_peak": {
+        "hours": "10:00-21:00",
+        "weekdays_only": true,
+        "rate": 0.13245
+      },
+      "off_peak": {
+        "hours": "all other hours",
+        "weekdays_only": false,
+        "rate": 0.09871
+      }
+    }
+  },
+  "fixed_charges": {
+    "customer_charge_monthly_usd": 302.72
+  },
+  "notes": {
+    "demand_charge_basis": "Highest single 15-minute average kW in billing period",
+    "summer_on_peak_demand": "Additional $19.10/kW for highest kW during on-peak hours",
+    "dsgs_program": "DSGS (Demand Side Grid Support) available for DR revenue",
+    "dsgs_rate_per_kwh": 2.0
+  }
+}

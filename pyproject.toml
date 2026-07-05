@@ -1,0 +1,42 @@
+[project]
+name = "elexity-analysis"
+version = "0.1.0"
+description = "C&I Building Energy Analysis — Elexity Technical Exercise"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "plotly>=5.18",
+    "cvxpy>=1.4",
+    "pvlib>=0.10",
+    "streamlit>=1.30",
+    "langgraph>=0.1",
+    "langchain-anthropic>=0.1",
+    "boto3>=1.34",
+    "pyarrow>=14.0",
+    "fastparquet>=2023.10",
+    "python-dotenv>=1.0",
+    "requests>=2.31",
+    "jupyter>=1.0",
+    "ipykernel>=6.0",
+    "fastapi>=0.139.0",
+    "uvicorn[standard]>=0.50.0",
+    "httpx>=0.28.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["models", "analysis", "agents", "streamlit_app"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0",
+    "black>=23.0",
+    "ruff>=0.1",
+]
