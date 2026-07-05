@@ -8,15 +8,8 @@ __pycache__/
 # Virtual environment
 .venv/
 
-# Generated data — large files, re-downloadable
-data/meter/
-data/weather/
-data/prices/
-data/solar/
-data/metadata.parquet
-
-# Tariff JSON stays in git (small, manually curated)
-!data/tariff/sce_tou_gs3.json
+# All data is now committed to the repo.
+# metadata.parquet (~79 MB) is under GitHub's 100 MB hard limit.
 
 # Analysis outputs
 outputs/
