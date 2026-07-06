@@ -927,7 +927,7 @@ Result dict now includes `peak_on_kw`, `peak_mid_kw`, `peak_all_kw`.
 
 ---
 
-### Task 4.8 [TODO] -- Re-run notebook; verify battery savings > $5k/yr
+### Task 4.8 [DONE] -- Re-run notebook; verify battery savings > $5k/yr
 
 `ash
 uv run python scripts/build_notebook.py
@@ -2966,6 +2966,7 @@ should be 3.5â€“6 years.
 | Agent pipeline | `agents/orchestrator.py` |
 | Dashboard | `streamlit_app/app.py` (port 8501) |
 | Sanity-check numbers | PLAN.md â€” Sanity-Check Numbers |
+
 
 
 
