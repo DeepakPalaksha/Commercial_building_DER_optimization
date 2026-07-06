@@ -213,9 +213,22 @@ def run_report_agent(state: dict) -> dict:
         "output_dir": str(out_dir),
     }
 
+    def _json_safe(obj):
+        """Replace non-finite floats with null so the output is valid JSON.
+
+        Python's json module serialises float('inf') as the bare token
+        ``Infinity``, which is valid JavaScript but NOT valid JSON (RFC 8259).
+        Any JSON parser (VS Code, jq, Python json.loads) will reject it with
+        'Value expected' or a similar error.
+        """
+        import math
+        if isinstance(obj, float) and not math.isfinite(obj):
+            return None
+        raise TypeError(type(obj))
+
     json_path = out_dir / "savings_summary.json"
     with open(json_path, "w") as f:
-        json.dump(summary, f, indent=2, default=str)
+        json.dump(summary, f, indent=2, default=_json_safe)
 
     # ── Console summary ───────────────────────────────────────────────
     print(f"\n[report_agent] Output written to: {out_dir}")
