@@ -542,3 +542,127 @@ single-image deployment for API (port 8000) and Streamlit (port 8501).
   shares.energy_pct      59.1%     (target 50-75%)     PASS
 
 ---
+
+## Entry 11 -- Optimization Gap Analysis + Notebook Fix
+
+**Date:** 2026-07-06
+
+### Prompts in this session
+- "The energy KWh needs to be a continuous function right..."
+- "We were discussing the optimization strategy in claude @recommendation_tariff_control"
+- "Lets create a branch now and start with the next steps..."
+- "Getting the above error [matplotlib FigureCanvasAgg warning]"
+- "The context window is full. do the needful to maintain the context."
+
+---
+
+### 1. Energy kWh explained
+- kWh per interval = demand_kw * 0.25 (Riemann sum, 15-min intervals)
+- SCE TOU-GS-3 energy rate is FIXED (set annually by CPUC) -- not DA price
+- CAISO DA LMP is a SEPARATE variable wholesale price used only for battery
+  arbitrage optimisation (not for bill calculation)
+- Two completely separate price signals -- must not be confused
+
+---
+
+### 2. Optimization Gap Analysis (recommendation_tariff_control vs code)
+
+Key file reviewed: recommendation_tariff_control (849 lines, detailed guide
+on California electricity market, SCE TOU-GS-3 billing, and 5-tier
+optimization strategy)
+
+**GAP 1 (Critical) -- Three demand charges vs one in MILP:**
+- Current models/optimizer.py uses single demand_rate (19.10+8.85=27.95)
+  and single p_peak variable
+- SCE TOU-GS-3 has THREE independent demand charges:
+    on-peak:   .10/kW (14:00-20:00 weekdays, summer)
+    mid-peak:  .80/kW  (10:00-14:00 + 20:00-21:00 weekdays)
+    all-time:  .85/kW  (any interval in the month)
+- Fix: add p_peak_on, p_peak_mid, p_peak_all with time-window masks
+
+**GAP 2 (High) -- All-time demand trap not in MILP:**
+- Rule-based savings_calculator.py has demand-aware charging
+- MILP optimizer does NOT have constraint:
+    p_charge[t] <= max(0, demand_target - load_kw[t])
+- Fix: add this constraint with demand_target parameter
+
+**GAP 3 (High) -- Battery savings 20x understated in headline numbers:**
+- run_solar_hvac_battery() uses rule-based dispatch --> ~/yr
+- MILP optimal dispatch achieves -/yr
+- Fix: replace rule-based battery loop with month-by-month MILP calls
+  in savings_calculator.py; keep rule-based as fast_mode=False fallback
+
+**GAP 4 (Medium, Version 2) -- DA price signal unused in MILP:**
+- prices_kwh arg exists in optimize_dispatch() but not in objective
+- DA prices needed for arbitrage uplift (+15-25% battery value)
+- Spring duck curve: negative DA prices -> charge for free
+- Deferred to Version 2 / Phase 10
+
+**GAP 5 (Low) -- Thermal constraints disabled:**
+- MILP thermal code present but always called with T_outdoor=None
+- Disabled to avoid infeasibility on hot days
+- Rule-based path uses thermal_model.py correctly
+
+---
+
+### 3. Branch Strategy (planned, not yet executed)
+
+`
+main  (Version 1 complete -- Phases 1-9, pushed to GitHub)
+  ├── v1-stable                        (backup branch, push to remote)
+  └── feat/milp-three-demand-charges   (all fix work goes here)
+`
+
+Files to change:
+- models/optimizer.py   -- 3 demand peak variables + all-time constraint
+- analysis/savings_calculator.py  -- replace battery loop with MILP
+- agents/optimizer_agent.py  -- pass TOU masks to optimizer
+- TASKS.md  -- new sub-tasks under Phase 4
+
+Expected outcome after fix:
+  Battery savings shown in dashboard: /yr --> -/yr
+  Demand charges in MILP: 1 combined --> 3 independent
+
+**STATUS: Plan created, NOT yet implemented. Branches NOT yet created.**
+Plan file: .cursor/plans/optimizer_gap_analysis_c913fb3a.plan.md
+
+---
+
+### 4. Notebook matplotlib fix (DONE)
+
+Problem: matplotlib.use('Agg') in Cell 2 caused plt.show() to warn
+  "FigureCanvasAgg is non-interactive" when running interactively.
+
+Fix applied to notebooks/analysis.ipynb:
+  Cell 2: replaced matplotlib.use('Agg') with:
+    try:
+        get_ipython().run_line_magic('matplotlib', 'inline')
+    except NameError:
+        matplotlib.use('Agg')  # headless nbconvert only
+
+  Cell 6: moved plt.show() before savefig; made savefig conditional
+    on outputs/cost_driver directory existing
+
+---
+
+### 5. Pending Work (next session should start here)
+
+1. Create v1-stable branch and push to remote
+2. Create feat/milp-three-demand-charges branch
+3. Fix models/optimizer.py (3 demand charges + all-time constraint)
+4. Replace battery loop in analysis/savings_calculator.py with MILP
+5. Update agents/optimizer_agent.py to pass TOU masks
+6. Add tests in tests/test_optimizer.py
+7. Update TASKS.md
+8. Commit and push feat branch
+9. Notebook: clear all outputs and re-run to show updated battery savings
+
+---
+
+### Files changed in this session
+- notebooks/analysis.ipynb  -- matplotlib backend fix (Cells 2 + 6)
+- scripts/find_nb_cell.py   -- helper script (can delete later)
+- AI_chat_log/plan-tasks-creation.md  -- this entry
+- .cursor/plans/optimizer_gap_analysis_c913fb3a.plan.md  -- updated plan
+
+---
