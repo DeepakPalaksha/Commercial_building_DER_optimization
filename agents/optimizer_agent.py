@@ -33,7 +33,7 @@ from analysis.savings_calculator import (
 )
 from models.optimizer import optimize_dispatch
 from models.solar_model import load_solar_profile
-from analysis.tariff import get_demand_rates
+from analysis.tariff import get_demand_rates, classify_period
 
 SCENARIOS = [
     "baseline",
@@ -120,24 +120,29 @@ def run_optimizer_agent(state: dict) -> dict:
     aug_solar = _get_solar_array(meter)[aug_mask.values]
     aug_rates = rate_schedule[aug_mask.values]
 
-    t_outdoor_col = "T_outdoor_f" if "T_outdoor_f" in meter.columns else None
-    aug_T = (
-        meter.loc[aug_mask, "T_outdoor_f"].values.astype(float)
-        if t_outdoor_col
-        else None
+    # Build TOU masks for August (summer: on-peak applies)
+    aug_ts_list = meter.loc[aug_mask, "timestamp"].tolist()
+    on_peak_mask = np.array(
+        [classify_period(t) == "on_peak"  for t in aug_ts_list]
+    )
+    mid_peak_mask = np.array(
+        [classify_period(t) == "mid_peak" for t in aug_ts_list]
     )
 
-    dr = get_demand_rates(8)
-    demand_rate = dr.get("on_peak_kw", 0) + dr.get("all_time_kw", 0)
+    dr = get_demand_rates(8)  # August = summer rates
 
     milp_result = optimize_dispatch(
         load_kw=aug_load,
         solar_kw=aug_solar,
         prices_kwh=aug_rates,
         tariff_rates=aug_rates,
-        demand_rate=demand_rate,
+        on_peak_mask=on_peak_mask,
+        mid_peak_mask=mid_peak_mask,
+        on_peak_rate=dr.get("on_peak_kw", 19.10),
+        mid_peak_rate=dr.get("mid_peak_kw", 5.80),
+        all_time_rate=dr.get("all_time_kw", 8.85),
         # Skip thermal sub-problem for the August MILP:
-        # the RC thermal constraints can become infeasible when
+        # RC thermal constraints can become infeasible when
         # T_outdoor is very high and comfort bounds are tight.
         # Thermal pre-cooling is handled by run_solar_hvac() above.
         T_outdoor=None,
@@ -151,9 +156,12 @@ def run_optimizer_agent(state: dict) -> dict:
     ):
         milp_bill = None   # solver returned infeasible or unbounded
     scenario_results["milp_august"] = {
-        "status": milp_result["status"],
-        "bill": round(milp_bill, 2) if milp_bill is not None else None,
-        "peak_demand_kw": milp_result.get("peak_demand_kw"),
+        "status":       milp_result["status"],
+        "bill":         round(milp_bill, 2) if milp_bill is not None else None,
+        "peak_on_kw":   milp_result.get("peak_on_kw"),
+        "peak_mid_kw":  milp_result.get("peak_mid_kw"),
+        "peak_all_kw":  milp_result.get("peak_all_kw"),
+        "peak_demand_kw": milp_result.get("peak_demand_kw"),  # compat
     }
 
     # Print summary
@@ -167,11 +175,16 @@ def run_optimizer_agent(state: dict) -> dict:
 
     if milp_result["status"] in ("optimal", "optimal_inaccurate"):
         aug_peak_base = float(aug_load.max())
-        aug_peak_opt = milp_result.get("peak_demand_kw") or aug_peak_base
+        on_peak_base = (
+            float(aug_load[on_peak_mask].max()) if on_peak_mask.any()
+            else 0.0
+        )
+        peak_on_opt  = milp_result.get("peak_on_kw")  or on_peak_base
+        peak_all_opt = milp_result.get("peak_all_kw") or aug_peak_base
         print(
-            f"  MILP August: peak {aug_peak_base:.1f} kW → "
-            f"{aug_peak_opt:.1f} kW "
-            f"(reduction: {aug_peak_base - aug_peak_opt:.1f} kW)"
+            f"  MILP August (3-demand):"
+            f" on-peak {on_peak_base:.1f} → {peak_on_opt:.1f} kW"
+            f" | all-time {aug_peak_base:.1f} → {peak_all_opt:.1f} kW"
         )
 
     state.update({

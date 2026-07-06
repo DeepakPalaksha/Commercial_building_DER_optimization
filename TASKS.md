@@ -889,6 +889,53 @@ if __name__ == "__main__":
     print(f"Peak demand: {result['peak_demand_kw']:.1f} kW")
 ```
 
+
+---
+
+### Task 4.5 [DONE] -- 3-demand MILP: models/optimizer.py
+
+**Branch:** `MILP_three_demand_charges_optimization`
+
+Replace single `demand_rate / p_peak` with three independent demand
+peaks matching SCE TOU-GS-3:
+- `p_peak_on`  -- on-peak demand peak ($19.10/kW, summer weekday 14-20h)
+- `p_peak_mid` -- mid-peak demand peak ($5.80/kW)
+- `p_peak_all` -- all-time demand peak ($8.85/kW, every interval)
+
+All-time demand protection is implicit via `p_grid <= p_peak_all`
+in the objective. Solver: HIGHS. August smoke test: on-peak 170 kW
+-> 88.5 kW (48% reduction), status: optimal.
+
+---
+
+### Task 4.6 [DONE] -- Wire MILP into savings_calculator.py
+
+Replaced rule-based battery for-loop with month-by-month MILP calls
+when `use_milp=True` (default). Added helpers:
+- `_apply_milp_battery()`: 12-month loop, TOU masks, 3 demand rates
+- `_apply_rulebased_battery()`: original heuristic (use_milp=False)
+
+Expected improvement: ~$423/yr (rule-based) -> $8k-$27k/yr (MILP).
+
+---
+
+### Task 4.7 [DONE] -- Update optimizer_agent.py
+
+Build `on_peak_mask` / `mid_peak_mask` from August timestamps.
+Call `optimize_dispatch()` with 3 rates from `get_demand_rates(8)`.
+Result dict now includes `peak_on_kw`, `peak_mid_kw`, `peak_all_kw`.
+
+---
+
+### Task 4.8 [TODO] -- Re-run notebook; verify battery savings > $5k/yr
+
+`ash
+uv run python scripts/build_notebook.py
+uv run jupyter nbconvert --to notebook --execute notebooks/analysis.ipynb
+`
+
+Done when battery row in savings waterfall shows > $5,000/yr incremental.
+
 **Done when:** `uv run python models/optimizer.py` completes with
 `status: optimal` and prints cost + peak demand without errors.
 
@@ -2919,6 +2966,7 @@ should be 3.5â€“6 years.
 | Agent pipeline | `agents/orchestrator.py` |
 | Dashboard | `streamlit_app/app.py` (port 8501) |
 | Sanity-check numbers | PLAN.md â€” Sanity-Check Numbers |
+
 
 
 

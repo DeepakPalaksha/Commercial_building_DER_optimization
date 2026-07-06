@@ -666,3 +666,83 @@ Fix applied to notebooks/analysis.ipynb:
 - .cursor/plans/optimizer_gap_analysis_c913fb3a.plan.md  -- updated plan
 
 ---
+
+## Entry 12 -- MILP Three-Demand Charges Implementation
+
+**Date:** 2026-07-06
+**Branch:** MILP_three_demand_charges_optimization
+
+### Prompts in this session
+- "go ahead and fix them. I am not sure whats happening in the optimizer still.
+  Can you take me through the code and theory ?"
+- "The branch has been created manually... lets just be there and focus on next
+  steps. Please read documents..."
+- "implement"
+
+---
+
+### Reference documents read
+- recommendation_tariff_control.md (1286 lines) -- full SCE TOU-GS-3 billing
+  guide, optimization priority pyramid, MILP objective with priority weights
+- production_grade_strategy.md (477 lines) -- phase roadmap, forecasting
+  architecture, EV integration, MILP vs RL decision
+
+---
+
+### Theory walkthrough delivered
+Key points explained to user:
+1. SCE TOU-GS-3 has 3 INDEPENDENT demand charges (on-peak .10/kW,
+   mid-peak .80/kW, all-time .85/kW) -- each measured from different
+   time window of the same load curve
+2. All-time demand trap: battery charging at 125 kW at 3am when building
+   draws 18 kW --> grid sees 143 kW --> ,107/month penalty
+3. Rule-based dispatch: ~/yr. MILP optimal: -/yr (20x gap)
+4. In MILP: p_grid <= p_peak_all + all_time_rate in objective = implicit
+   all-time demand protection (no explicit charge constraint needed)
+5. Phase 1 = perfect foresight, historical data, upper bound on savings
+   Phase 2 = add forecasting (LSTM, weather, CAISO OASIS API)
+   Phase 3 = RL for real-time + stochastic MILP + multi-site
+
+---
+
+### Files changed (all on MILP_three_demand_charges_optimization branch)
+
+1. models/optimizer.py -- COMPLETE REWRITE
+   - Removed: demand_rate: float (single combined rate)
+   - Removed: p_peak (single peak variable)
+   - Added: on_peak_mask, mid_peak_mask (bool arrays, shape T)
+   - Added: on_peak_rate, mid_peak_rate, all_time_rate (3 separate rates)
+   - Added: p_peak_on, p_peak_mid, p_peak_all (3 independent peak vars)
+   - Added: 3 window-specific constraints:
+       p_grid[on_peak_mask] <= p_peak_on
+       p_grid[mid_peak_mask] <= p_peak_mid
+       p_grid <= p_peak_all
+   - Updated objective: demand_cost = sum of 3 rate * peak products
+   - Updated return dict: peak_on_kw, peak_mid_kw, peak_all_kw
+   - Smoke test result (Aug 1-7): on-peak 170 kW -> 88.5 kW (48%)
+
+2. analysis/savings_calculator.py
+   - run_solar_hvac_battery() gains use_milp=True parameter
+   - New helper _apply_milp_battery(): 12-month loop with MILP
+   - New helper _apply_rulebased_battery(): original logic (fallback)
+   - MILP path builds on_peak_mask/mid_peak_mask from classify_period()
+   - MILP path gets 3 demand rates per month from get_demand_rates()
+
+3. agents/optimizer_agent.py
+   - Added import: classify_period from analysis.tariff
+   - August MILP call now uses on_peak_mask, mid_peak_mask
+   - 3 separate rates passed: on_peak_rate, mid_peak_rate, all_time_rate
+   - Result logging updated: shows peak_on_kw, peak_mid_kw, peak_all_kw
+   - Removed: demand_rate = sum of on_peak + all_time (was wrong)
+
+4. TASKS.md
+   - Added Tasks 4.5 [DONE], 4.6 [DONE], 4.7 [DONE] after Task 4.4
+   - Added Task 4.8 [TODO]: re-run notebook, verify battery > /yr
+
+---
+
+### Pending after this session
+- Task 4.8: run notebook end-to-end to update savings waterfall chart
+- Full annual MILP results pending (running in background)
+- Commit and push MILP_three_demand_charges_optimization branch
+
